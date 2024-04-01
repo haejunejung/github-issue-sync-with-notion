@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - PERSONAL_GITHUB_ACCESS_KEY
-      - NOTION_KEY
-      - NOTION_DATABASE_ID
+      - NOTION_API_KEY
+      - NOTION_ISSUE_DATABASE_ID
       - REPO_OWNER
       - REPO_NAME
