@@ -7,13 +7,13 @@ body:
     id: motivation
     attributes:
       label: "Motivation 🧐"
-      description: Why did you do this?
+      description: 왜 이 기능을 만들어야 하는지 설명해주세요.
     validations:
       required: true
   - type: textarea
     id: todo
     attributes:
       label: "TO DO 📑"
-      description: What are you going to do?
+      description: 이 기능을 만들기 위해 해야 할 일들을 적어주세요.
     validations:
       required: true

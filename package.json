@@ -1,0 +1,19 @@
+{
+  "name": "github-issue-sync-with-notion",
+  "version": "1.0.0",
+  "description": "github-issue-sync-with-notion",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@notionhq/client": "^2.2.14",
+    "@tryfabric/martian": "^1.2.4",
+    "dotenv": "^16.4.5",
+    "lodash": "^4.17.21",
+    "octokit": "^3.1.2"
+  }
+}
