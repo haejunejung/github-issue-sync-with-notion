@@ -3,8 +3,8 @@ FROM node:16
 
 WORKDIR /usr/src/app
 
-COPY workflows/ ./workflows
+COPY workflows/ ./
 
 RUN npm install
 
-CMD ["node", "workflows/github-with-notion/index.js"]
+CMD ["node", "index.js"]
