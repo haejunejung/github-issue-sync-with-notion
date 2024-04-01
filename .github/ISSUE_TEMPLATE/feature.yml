@@ -2,6 +2,8 @@ name: Feature
 description: Submit a proposal for a new feature
 title: "[Feature]: "
 labels: ["Feature 🧐"]
+assignees:
+  - octocat
 body:
   - type: textarea
     id: motivation
