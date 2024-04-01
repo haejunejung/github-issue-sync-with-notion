@@ -80,8 +80,8 @@ async function getIssuesFromNotionDatabase() {
 async function getGitHubIssuesForRepository() {
   const issues = [];
   const iterator = octokit.paginate.iterator(octokit.rest.issues.listForRepo, {
-    owner: process.env.GITHUB_REPO_OWNER,
-    repo: process.env.GITHUB_REPO_NAME,
+    owner: process.env.REPO_OWNER,
+    repo: process.env.REPO_NAME,
     state: "all",
     per_page: 100,
   });
@@ -222,7 +222,7 @@ async function syncNotionDatabaseWithGitHub() {
   console.log("\n✅ Notion database is synced with GitHub.");
 }
 
-(async () => {
+module.exports = async function githubIssueSyncWithNotion() {
   console.log("Github Issue Sync With Notion");
   await setInitialGitHubToNotionIdMap().then(syncNotionDatabaseWithGitHub);
-})();
+};
