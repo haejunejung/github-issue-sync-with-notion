@@ -3,14 +3,14 @@ description: Submit a proposal for a new feature
 title: "[Feature]: "
 labels: ["Feature 🧐"]
 body:
-  - type: textarea
+  - type: text
     id: motivation
     attributes:
       label: "Motivation 🧐"
       description: Why did you do this?
     validations:
       required: true
-  - type: textarea
+  - type: text
     id: todo
     attributes:
       label: "TO DO 📑"
