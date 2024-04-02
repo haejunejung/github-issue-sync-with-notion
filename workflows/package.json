@@ -1,7 +1,7 @@
 {
-  "name": "github-issue-sync-with-notion",
+  "name": "github-sync-with-notion",
   "version": "1.0.0",
-  "description": "github-issue-sync-with-notion",
+  "description": "github-sync-with-notion",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
