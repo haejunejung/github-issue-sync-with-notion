@@ -12,7 +12,7 @@ jobs:
       PERSONAL_GITHUB_ACCESS_KEY: ${{ secrets.PERSONAL_GITHUB_ACCESS_KEY }}
       NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
       NOTION_ISSUE_DATABASE_ID: ${{ secrets.NOTION_ISSUE_DATABASE_ID }}
-      NOTION_PULL_REQUEST_DATABASE_ID: ${{ secrets.NOTION_ISSUE_DATABASE_ID }}
+      NOTION_PR_DATABASE_ID: ${{ secrets.NOTION_PR_DATABASE_ID }}
       REPO_OWNER: ${{ secrets.REPO_OWNER }}
       REPO_NAME: ${{ secrets.REPO_NAME }}
 
@@ -25,7 +25,7 @@ jobs:
           echo PERSONAL_GITHUB_ACCESS_KEY=${{ env.PERSONAL_GITHUB_ACCESS_KEY }} >> .env
           echo NOTION_API_KEY=${{ env.NOTION_API_KEY }} >> .env
           echo NOTION_ISSUE_DATABASE_ID=${{ env.NOTION_ISSUE_DATABASE_ID }} >> .env
-          echo NOTION_PULL_REQUEST_DATABASE_ID=${{ env.NOTION_PULL_REQUEST_DATABASE_ID }} >> .env
+          echo NOTION_PR_DATABASE_ID=${{ env.NOTION_PR_DATABASE_ID }} >> .env
           echo REPO_OWNER=${{ env.REPO_OWNER }} >> .env
           echo REPO_NAME=${{ env.REPO_NAME }} >> .env
 
