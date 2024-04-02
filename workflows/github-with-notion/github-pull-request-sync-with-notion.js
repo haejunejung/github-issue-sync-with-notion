@@ -17,19 +17,19 @@ const databaseId = process.env.NOTION_PR_DATABASE_ID;
 const OPERATION_BATCH_SIZE = 10;
 
 /**
- * Local map to store Github PR ID to its Notion pageId.
- * { [prId: string]: string }
+ * Local map to store Github Pull Request ID to its Notion pageId.
+ * { [pullRequestId: string]: string }
  */
 
-const githubPRIdToNotionPageId = {};
+const githubPullRequestIdToNotionPageId = {};
 
 /**
  * Get and set the initial data store with PRs currently in the database.
  */
 async function setInitialGithubToNotionIdMap() {
-  const currentPRs = await getPRsFromNotionDatabase();
-  for (const { pageId, prNumber } of currentPRs) {
-    githubPRIdToNotionPageId[prNumber] = pageId;
+  const currentPullRequests = await getPullRequestsFromNotionDatabase();
+  for (const { pageId, prNumber } of currentPullRequests) {
+    githubPullRequestIdToNotionPageId[prNumber] = pageId;
   }
 }
 
@@ -38,7 +38,7 @@ async function setInitialGithubToNotionIdMap() {
  *
  * @returns {Promise<Array<{ pageId: string, issueNumber: number }>>}
  */
-async function getPRsFromNotionDatabase() {
+async function getPullRequestsFromNotionDatabase() {
   const pages = [];
   let cursor = undefined;
   while (true) {
@@ -78,7 +78,7 @@ async function getPRsFromNotionDatabase() {
  * https://docs.github.com/en/rest/pulls/pulls#list-pull-requests
  * https://octokit.github.io/rest.js/v19#pulls-list
  *
- * @returns {Promise<Array<{ title: string, task_link: string, state: "open" | "closed", pr_link: string, pr_status: "Closed - Merged | "Closed - Not Merged}>>}
+ * @returns {Promise<Array<{ title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string>}>>}
  */
 async function getGitHubPRsForRepository() {
   const pullRequests = [];
@@ -90,159 +90,141 @@ async function getGitHubPRsForRepository() {
   });
   for await (const { data } of iterator) {
     for (const pr of data) {
-      console.log("pr: \n", pr);
-      if (pr.body) {
-        notionPRLinkMatch = pr.body.match(
-          /https:\/\/www\.notion\.so\/([A-Za-z0-9]+(-[A-Za-z0-9]+)+)$/
-        );
-        if (notionPRLinkMatch && pr.state == "closed") {
-          const page_id = notionPRLinkMatch[0]
-            .split("-")
-            .pop()
-            .replaceAll("-", "");
-
-          var status = "";
-          var content = "";
-          if (pr.merged_at != null) {
-            status = "Closed - Merged";
-            content = " has been merged!";
-          } else {
-            status = "Closed - Not Merged";
-            content = " was closed but not merged!";
-          }
-
-          pullRequests.push({
-            task_link: notionPRLinkMatch[0],
-            state: pr.state,
-            page_id: page_id,
-            pr_link: pr.html_url,
-            pr_status: status,
-            comment_content: content,
-          });
-        }
-      } else {
-        console.log("Error: PR body is empty");
-      }
+      pullRequests.push({
+        title: pr.title,
+        state: pr.state,
+        number: pr.number,
+        body: pr.body,
+        url: pr.url,
+        requested_reviewers: pr.requested_reviewers,
+      });
     }
-    return pullRequests;
+  }
+
+  return pullRequests;
+}
+
+/**
+ * Determines if a PR is already in the Notion database.
+ *
+ * @param {Array<{ title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string>}>}
+ * @returns {{
+ *    pageToCreate: Array<{ title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string> }>,
+ *    pageToUpdate: Array<{ pageId: string, title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string> }>
+ * }}
+ */
+function getNotionOperations(pullRequests) {
+  const pagesToCreate = [];
+  const pagesToUpdate = [];
+
+  for (const pr of pullRequests) {
+    const pageId = githubPullRequestIdToNotionPageId[pr.number];
+    if (!pageId) {
+      pagesToCreate.push(pr);
+    } else {
+      pagesToUpdate.push({ pageId, ...pr });
+    }
+  }
+
+  return { pagesToCreate, pagesToUpdate };
+}
+
+/**
+ * Creates new pages in Notion.
+ *
+ * @param {Array<{ title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string> }>} pagesToCreate
+ */
+async function createPages(pagesToCreate) {
+  const pagesToCreateChunks = _.chunk(pagesToCreate, OPERATION_BATCH_SIZE);
+  for (const pagesToCreateBatch of pagesToCreateChunks) {
+    await Promise.all(
+      pagesToCreateBatch.map(async (pr) => {
+        await notion.pages.create({
+          parent: { database_id: databaseId },
+          properties: getPropertiesFromPullRequest(pr),
+          children: [...markdownToBlocks(pr.body)],
+        });
+      })
+    );
+  }
+  console.log(`Successfully created ${pagesToCreate.length} PR(s) in Notion.`);
+}
+
+/**
+ * Updates provided pages in Notion.
+ *
+ * @param {Array<{ pageId: string, title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string> }>} pagesToUpdate
+ */
+async function updatePages(pagesToUpdate) {
+  const pagesToUpdateChunks = _.chunk(pagesToUpdate, OPERATION_BATCH_SIZE);
+  for (const pagesToUpdateBatch of pagesToUpdateChunks) {
+    await Promise.all(
+      pagesToUpdateBatch.map(({ pageId, ...pr }) =>
+        notion.pages.update({
+          page_id: pageId,
+          properties: getPropertiesFromPullRequest(pr),
+        })
+      )
+    );
+    console.log(`Completed batch size: ${pagesToUpdateBatch.length}`);
   }
 }
 
-// /**
-//  * Enable to change status property in Notion Database
-//  * When enabling this, make sure you have a set the STATUS_FIELD_NAME
-//  */
-// const UPDATE_STATUS_IN_NOTION_DB = process.env.UPDATE_STATUS_IN_NOTION_DB;
-// const STATUS_PROPERTY_NAME = process.env.STATUS_PROPERTY_NAME;
+/**
+ * Returns the Github Pull Request to conform to this database's schema properties.
+ *
+ * @param {{ title: string, state: "open" | "closed", number: string, body: string, url: string, requested_reviewers: Array<string> }} pr
+ */
+function getPropertiesFromPullRequest(pullRequest) {
+  const { title, state, number, body, url, requested_reviewers } = pullRequest;
+  return {
+    "Pull Request": {
+      title: [{ type: "text", text: { content: title } }],
+    },
+    "Pull Request Number": {
+      number,
+    },
+    State: {
+      select: { name: state },
+    },
+    URL: {
+      url,
+    },
+    "Requested Reviewers": {
+      type: "multi_select",
+      multi_select: requested_reviewers?.map((reviewer) => ({
+        name: reviewer.login,
+      })),
+    },
+  };
+}
 
-// /**
-//  * Entry Point
-//  */
-// updateNotionDBwithGithubPRs();
+async function syncNotionDatabaseWithGithub() {
+  // Get all pull requests currently in the provided GitHub repository.
+  console.log("\nFetching pull requests from GitHub repository...");
+  const pullRequests = await getGitHubPRsForRepository();
+  console.log(
+    `Fetched ${pullRequests.length} pull requests from GitHub repository.`
+  );
+  const { pagesToCreate, pagesToUpdate } = getNotionOperations(pullRequests);
 
-// /**
-//  * Fetches PRs from Github and updates the according Notion Task
-//  */
-// async function updateNotionDBwithGithubPRs() {
-//   // Get all issues currently in the provided GitHub repository.
-//   console.log("\nFetching PRs from GitHub repository...");
-//   var prs = await getGitHubPRsForRepository();
-//   console.log(`Fetched ${prs.length} closed PR(s) from GitHub repository.`);
+  // Create pages for new pull requests.
+  console.log(`\n${pagesToCreate.length} new pull requests to add to Notion.`);
+  if (pagesToCreate.length > 0) {
+    await createPages(pagesToCreate);
+  }
 
-//   var prsToUpdate = [];
-//   for (var pr of prs) {
-//     if (!(await hasIntegrationCommentedOnPage(pr.page_id))) {
-//       prsToUpdate.push(pr);
-//     }
-//   }
-//   updatePages(prsToUpdate);
-// }
+  // Updates pages for existing pull requests.
+  console.log(`\n${pagesToUpdate.length} pull requests to update in Notion.`);
+  if (pagesToUpdate.length > 0) {
+    await updatePages(pagesToUpdate);
+  }
 
-// /**
-//  * Returns whether integration has commented
-//  * @params page_id: string
-//  * @returns {Promise<Boolean>}
-//  */
-// async function hasIntegrationCommentedOnPage(page_id) {
-//   const comments = await notion.comments.list({ block_id: page_id });
-//   const bot = await notion.users.me();
-//   if (comments.results) {
-//     for (const comment of comments.results) {
-//       if (comment.created_by.id === bot.id) {
-//         return true;
-//       }
-//     }
-//   }
-//   return false;
-// }
-
-// /***
-//  *
-//  * @param pagesToUpdate: [pages]
-//  * @returns Promise
-//  */
-// async function updatePages(pagesToUpdate) {
-//   const pagesToUpdateChunks = _.chunk(pagesToUpdate, OPERATION_BATCH_SIZE);
-//   for (const pagesToUpdateBatch of pagesToUpdateChunks) {
-//     //Update page status property
-//     if (UPDATE_STATUS_IN_NOTION_DB) {
-//       await Promise.all(
-//         pagesToUpdateBatch.map(({ ...pr }) =>
-//           //Update Notion Page status
-//           notion.pages.update({
-//             page_id: pr.page_id,
-//             properties: {
-//               [STATUS_PROPERTY_NAME]: {
-//                 status: {
-//                   name: pr.pr_status,
-//                 },
-//               },
-//             },
-//           })
-//         )
-//       );
-//     }
-//     //Write Comment
-//     await Promise.all(
-//       pagesToUpdateBatch.map(({ pageId, ...pr }) =>
-//         notion.comments.create({
-//           parent: {
-//             page_id: pr.page_id,
-//           },
-//           rich_text: [
-//             {
-//               type: "text",
-//               text: {
-//                 content: "Your PR",
-//                 link: {
-//                   url: pr.pr_link,
-//                 },
-//               },
-//               annotations: {
-//                 bold: true,
-//               },
-//             },
-//             {
-//               type: "text",
-//               text: {
-//                 content: pr.comment_content,
-//               },
-//             },
-//           ],
-//         })
-//       )
-//     );
-//   }
-//   if (pagesToUpdate.length == 0) {
-//     console.log("Notion Tasks are already up-to-date");
-//   } else {
-//     console.log(
-//       "Successfully updated " + pagesToUpdate.length + " task(s) in Notion"
-//     );
-//   }
-// }
+  // Success!
+  console.log("\n✅ Notion database is synced with GitHub.");
+}
 
 module.exports = async function githubPullRequestSyncWithNotion() {
   console.log("Github PullReqeust Sync With Notion");
-  await setInitialGithubToNotionIdMap().then(getGitHubPRsForRepository);
+  await setInitialGithubToNotionIdMap().then(syncNotionDatabaseWithGithub);
 };
