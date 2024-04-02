@@ -9,5 +9,6 @@ services:
       - PERSONAL_GITHUB_ACCESS_KEY
       - NOTION_API_KEY
       - NOTION_ISSUE_DATABASE_ID
+      - NOTION_PR_DATABASE_ID
       - REPO_OWNER
       - REPO_NAME
