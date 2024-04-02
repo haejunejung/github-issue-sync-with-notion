@@ -11,10 +11,17 @@ const _ = require("lodash");
 const { markdownToBlocks } = require("@tryfabric/martian");
 
 dotenv.config();
+
 const octokit = new Octokit({ auth: process.env.PERSONAL_GITHUB_ACCESS_KEY });
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_ISSUE_DATABASE_ID;
 const OPERATION_BATCH_SIZE = 10;
+
+console.log(
+  process.env.PERSONAL_GITHUB_ACCESS_KEY,
+  process.env.NOTION_API_KEY,
+  process.env.NOTION_ISSUE_DATABASE_ID
+);
 
 /**
  * Local map to store  GitHub issue ID to its Notion pageId.
